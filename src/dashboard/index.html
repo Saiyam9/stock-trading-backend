@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Swing Trading Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #232733;
+      --border: #2e3348;
+      --text: #e1e4ed;
+      --text-dim: #8b8fa3;
+      --green: #22c55e;
+      --green-bg: rgba(34,197,94,.12);
+      --red: #ef4444;
+      --red-bg: rgba(239,68,68,.12);
+      --blue: #3b82f6;
+      --blue-bg: rgba(59,130,246,.12);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245,158,11,.12);
+      --purple: #a855f7;
+      --radius: 12px;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+    .mode-badge {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--blue-bg);
+      color: var(--blue);
+    }
+    .mode-badge.live { background: var(--red-bg); color: var(--red); }
+    .mode-badge.paper { background: var(--amber-bg); color: var(--amber); }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .market-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .market-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+    .market-dot.open { background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    /* Layout */
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+
+    /* Stats row */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .stat-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; font-family: var(--mono); }
+    .stat-value.positive { color: var(--green); }
+    .stat-value.negative { color: var(--red); }
+
+    /* Actions bar */
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    button {
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    button:hover { background: var(--surface2); border-color: var(--text-dim); }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    button.primary:hover { background: #2563eb; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      width: fit-content;
+    }
+    .tab {
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+      cursor: pointer;
+      border: none;
+      background: none;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { background: var(--surface2); color: var(--text); }
+
+    /* Panels */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Tables */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 12px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge.open { background: var(--blue-bg); color: var(--blue); }
+    .badge.closed { background: var(--surface2); color: var(--text-dim); }
+    .badge.buy { background: var(--green-bg); color: var(--green); }
+    .badge.target { background: var(--green-bg); color: var(--green); }
+    .badge.stop_loss { background: var(--red-bg); color: var(--red); }
+    .badge.time_exit { background: var(--amber-bg); color: var(--amber); }
+
+    .pnl-positive { color: var(--green); }
+    .pnl-negative { color: var(--red); }
+
+    /* Logs */
+    .log-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      max-height: 600px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+    .log-line { color: var(--text-dim); white-space: pre-wrap; word-break: break-all; }
+    .log-line.info { color: var(--text); }
+    .log-line.warn { color: var(--amber); }
+    .log-line.error { color: var(--red); }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+    }
+    .empty-state p { font-size: 14px; }
+
+    /* Charts */
+    .chart-toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    select {
+      font-family: var(--font);
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      min-width: 160px;
+    }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .chart-meta {
+      color: var(--text-dim);
+      font-size: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 320px;
+    }
+    .chart-wrap.rsi {
+      height: 220px;
+    }
+
+    /* Backtest */
+    .backtest-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .metric .k {
+      color: var(--text-dim);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .metric .v {
+      margin-top: 6px;
+      font-size: 22px;
+      font-family: var(--mono);
+      font-weight: 600;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 200;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: var(--green); }
+    .toast.error { border-color: var(--red); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header { padding: 12px 16px; }
+      .container { padding: 16px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      td, th { padding: 8px 10px; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Swing Trader</h1>
+    <span class="mode-badge" id="modeBadge">LOG</span>
+  </div>
+  <div class="header-right">
+    <div class="market-status">
+      <span class="market-dot" id="marketDot"></span>
+      <span id="marketLabel">Market Closed</span>
+    </div>
+    <span style="color:var(--text-dim);font-size:12px" id="lastUpdate"></span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Stats -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><div class="stat-label">Capital</div><div class="stat-value" id="statCapital">--</div></div>
+    <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value" id="statPnl">--</div></div>
+    <div class="stat-card"><div class="stat-label">Open Trades</div><div class="stat-value" id="statOpen">--</div></div>
+    <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="statWinRate">--</div></div>
+    <div class="stat-card"><div class="stat-label">Total Trades</div><div class="stat-value" id="statTotal">--</div></div>
+    <div class="stat-card"><div class="stat-label">W / L</div><div class="stat-value" id="statWL">--</div></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="primary" id="btnScan">Run Daily Scan</button>
+    <button id="btnMonitor">Monitor Trades</button>
+    <button id="btnRefreshSignals">Refresh Signals</button>
+    <button id="btnRefreshAll">Refresh All</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="signals">Signals</button>
+    <button class="tab" data-tab="charts">Charts</button>
+    <button class="tab" data-tab="backtest">Backtest</button>
+    <button class="tab" data-tab="trades">Trades</button>
+    <button class="tab" data-tab="logs">Logs</button>
+  </div>
+
+  <!-- Signals Panel -->
+  <div class="panel active" id="panel-signals">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Price</th>
+            <th>RSI (14)</th>
+            <th>Near Support</th>
+            <th>Signal</th>
+            <th>Position Size</th>
+            <th>Stop Loss</th>
+            <th>Target</th>
+          </tr>
+        </thead>
+        <tbody id="signalsBody">
+          <tr><td colspan="8"><div class="loading"><div class="spinner"></div>Loading signals...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Charts Panel -->
+  <div class="panel" id="panel-charts">
+    <div class="chart-toolbar">
+      <select id="chartSymbol"></select>
+      <button id="btnLoadChart">Load Chart</button>
+    </div>
+    <div class="chart-card">
+      <div class="chart-meta" id="chartMeta">Select a symbol to view chart and RSI.</div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-wrap rsi"><canvas id="rsiChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Backtest Panel -->
+  <div class="panel" id="panel-backtest">
+    <div class="actions" style="margin-bottom:16px;">
+      <button class="primary" id="btnRunBacktest">Run Backtest (1Y)</button>
+    </div>
+    <div class="backtest-grid" id="backtestMetrics">
+      <div class="metric"><div class="k">Status</div><div class="v">--</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Entry Date</th>
+            <th>Exit Date</th>
+            <th>Entry</th>
+            <th>Exit</th>
+            <th>Qty</th>
+            <th>P&L</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody id="backtestBody">
+          <tr><td colspan="8"><div class="empty-state"><p>Run backtest to see historical trades.</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Trades Panel -->
+  <div class="panel" id="panel-trades">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Status</th>
+            <th>Qty</th>
+            <th>Entry</th>
+            <th>SL</th>
+            <th>Target</th>
+            <th>Exit</th>
+            <th>P&L</th>
+            <th>Reason</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="tradesBody">
+          <tr><td colspan="10"><div class="loading"><div class="spinner"></div>Loading trades...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Logs Panel -->
+  <div class="panel" id="panel-logs">
+    <div class="log-container" id="logContainer">
+      <div class="loading"><div class="spinner"></div>Loading logs...</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+let priceChart = null;
+let rsiChart = null;
+
+function formatINR(n) {
+  if (n == null) return '--';
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n);
+}
+
+function showToast(msg, type = '') {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// Tabs
+$$('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.tab').forEach(t => t.classList.remove('active'));
+    $$('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    $(`#panel-${tab.dataset.tab}`).classList.add('active');
+  });
+});
+
+// Fetch helpers
+async function api(path, opts) {
+  const res = await fetch(`/api${path}`, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Request failed');
+  }
+  return res.json();
+}
+
+// Load status
+async function loadStatus() {
+  try {
+    const s = await api('/status');
+    $('#statCapital').textContent = formatINR(s.capital);
+
+    const pnlEl = $('#statPnl');
+    pnlEl.textContent = formatINR(s.totalPnl);
+    pnlEl.className = 'stat-value ' + (s.totalPnl >= 0 ? 'positive' : 'negative');
+
+    $('#statOpen').textContent = `${s.openTradesCount} / ${s.maxTrades}`;
+    $('#statWinRate').textContent = s.winRate === 'N/A' ? 'N/A' : s.winRate + '%';
+    $('#statTotal').textContent = s.totalTradesCount;
+    $('#statWL').textContent = `${s.wins} / ${s.losses}`;
+
+    const badge = $('#modeBadge');
+    badge.textContent = s.mode.toUpperCase();
+    badge.className = 'mode-badge ' + s.mode;
+
+    const dot = $('#marketDot');
+    const label = $('#marketLabel');
+    if (s.marketOpen) {
+      dot.classList.add('open');
+      label.textContent = 'Market Open';
+    } else {
+      dot.classList.remove('open');
+      label.textContent = 'Market Closed';
+    }
+
+    $('#lastUpdate').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN');
+  } catch (e) {
+    console.error('Status load failed', e);
+  }
+}
+
+// Load signals
+async function loadSignals() {
+  const body = $('#signalsBody');
+  body.innerHTML = '<tr><td colspan="8"><div class="loading"><div class="spinner"></div>Scanning watchlist...</div></td></tr>';
+  try {
+    const payload = await api('/signals');
+    const signals = payload.signals || [];
+    const trend = payload.marketTrend;
+    if (signals.length === 0) {
+      body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No stocks in watchlist</p></div></td></tr>';
+      return;
+    }
+    const label = trend?.isBullish ? `Bullish (${trend.trendLabel})` : `Risk-off (${trend?.trendLabel || 'unknown'})`;
+    $('#chartMeta').textContent = `Market Trend: ${label} | Nifty: ${trend?.latestClose ?? '--'} | 50-SMA: ${trend?.sma50 ?? '--'} | 200-SMA: ${trend?.sma200 ?? '--'}`;
+    body.innerHTML = signals.map(s => {
+      if (s.error) return `<tr><td>${s.symbol}</td><td colspan="7" style="color:var(--red)">${s.error}</td></tr>`;
+      const rsiColor = s.rsi <= 30 ? 'var(--green)' : s.rsi >= 70 ? 'var(--red)' : s.rsi <= 40 ? 'var(--amber)' : 'var(--text)';
+      const detail = `${s.reason?.replaceAll('_', ' ') || '--'} | RR ${s.riskReward ?? '--'} | S ${s.supportLevel ?? '--'} / R ${s.resistanceLevel ?? '--'}`;
+      return `<tr>
+        <td style="font-weight:600;color:var(--text)">${s.symbol}</td>
+        <td>${formatINR(s.price)}</td>
+        <td style="color:${rsiColor}">${s.rsi ?? '--'}</td>
+        <td>${s.nearSupport ? '<span style="color:var(--green)">Yes</span>' : '<span style="color:var(--text-dim)">No</span>'}</td>
+        <td>${s.shouldBuy ? '<span class="badge buy">BUY</span>' : '<span style="color:var(--text-dim)">--</span>'}<div style="color:var(--text-dim);font-size:10px;margin-top:4px">${detail}</div></td>
+        <td>${s.shouldBuy ? s.positionSize.toLocaleString('en-IN') : '--'}</td>
+        <td>${s.shouldBuy ? formatINR(s.stopLoss) : '--'}</td>
+        <td>${s.shouldBuy ? formatINR(s.target) : '--'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="8"><div class="empty-state"><p style="color:var(--red)">Failed to load signals</p></div></td></tr>`;
+  }
+}
+
+function destroyCharts() {
+  if (priceChart) {
+    priceChart.destroy();
+    priceChart = null;
+  }
+  if (rsiChart) {
+    rsiChart.destroy();
+    rsiChart = null;
+  }
+}
+
+function lineColor(value) {
+  if (value == null) return 'var(--text)';
+  if (value >= 70) return 'var(--red)';
+  if (value <= 30) return 'var(--green)';
+  return 'var(--amber)';
+}
+
+async function loadWatchlist() {
+  const symbols = await api('/watchlist');
+  const select = $('#chartSymbol');
+  select.innerHTML = symbols
+    .map((symbol) => `<option value="${symbol}">${symbol}</option>`)
+    .join('');
+}
+
+async function loadChart() {
+  const symbol = $('#chartSymbol').value;
+  if (!symbol) return;
+  $('#chartMeta').textContent = `Loading chart for ${symbol}...`;
+  try {
+    const data = await api(`/chart/${symbol}?days=220`);
+    destroyCharts();
+
+    const ctxPrice = $('#priceChart').getContext('2d');
+    const ctxRsi = $('#rsiChart').getContext('2d');
+    const signal = data.latestSignal || {};
+    const supportSeries = data.closes.map(() => signal.supportLevel || null);
+    const resistanceSeries = data.closes.map(() => signal.resistanceLevel || null);
+
+    priceChart = new Chart(ctxPrice, {
+      type: 'line',
+      data: {
+        labels: data.dates,
+        datasets: [
+          { label: `${symbol} Close`, data: data.closes, borderColor: '#3b82f6', pointRadius: 0, borderWidth: 1.8 },
+          { label: 'Support', data: supportSeries, borderColor: '#22c55e', pointRadius: 0, borderDash: [6, 6], borderWidth: 1.2 },
+          { label: 'Resistance', data: resistanceSeries, borderColor: '#ef4444', pointRadius: 0, borderDash: [6, 6], borderWidth: 1.2 },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#e1e4ed' } } },
+        scales: {
+          x: { ticks: { color: '#8b8fa3', maxTicksLimit: 12 }, grid: { color: 'rgba(139,143,163,0.12)' } },
+          y: { ticks: { color: '#8b8fa3' }, grid: { color: 'rgba(139,143,163,0.12)' } },
+        },
+      },
+    });
+
+    rsiChart = new Chart(ctxRsi, {
+      type: 'line',
+      data: {
+        labels: data.dates,
+        datasets: [
+          {
+            label: 'RSI (14)',
+            data: data.rsi,
+            borderColor: '#a855f7',
+            borderWidth: 1.6,
+            pointRadius: 0,
+            segment: {
+              borderColor: (ctx) => lineColor(ctx.p1.parsed.y),
+            },
+          },
+          {
+            label: 'Overbought',
+            data: data.rsi.map(() => 70),
+            borderColor: 'rgba(239,68,68,.7)',
+            pointRadius: 0,
+            borderDash: [4, 4],
+            borderWidth: 1,
+          },
+          {
+            label: 'Oversold',
+            data: data.rsi.map(() => 30),
+            borderColor: 'rgba(34,197,94,.7)',
+            pointRadius: 0,
+            borderDash: [4, 4],
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#e1e4ed' } } },
+        scales: {
+          x: { ticks: { color: '#8b8fa3', maxTicksLimit: 12 }, grid: { color: 'rgba(139,143,163,0.12)' } },
+          y: { min: 0, max: 100, ticks: { color: '#8b8fa3' }, grid: { color: 'rgba(139,143,163,0.12)' } },
+        },
+      },
+    });
+
+    $('#chartMeta').textContent = `${symbol} | RSI ${signal.rsi ?? '--'} | Support ${signal.supportLevel ?? '--'} | Resistance ${signal.resistanceLevel ?? '--'} | RR ${signal.riskReward ?? '--'} | ${signal.reason?.replaceAll('_', ' ') || '--'}`;
+  } catch (e) {
+    showToast(`Chart load failed: ${e.message}`, 'error');
+  }
+}
+
+async function runDashboardBacktest() {
+  const metrics = $('#backtestMetrics');
+  const body = $('#backtestBody');
+  metrics.innerHTML = '<div class="metric"><div class="k">Status</div><div class="v">Running...</div></div>';
+  body.innerHTML = '<tr><td colspan="8"><div class="loading"><div class="spinner"></div>Running historical simulation...</div></td></tr>';
+  try {
+    const result = await api('/backtest?days=365');
+    const s = result.summary;
+    metrics.innerHTML = `
+      <div class="metric"><div class="k">Total Trades</div><div class="v">${s.totalTrades}</div></div>
+      <div class="metric"><div class="k">Win Rate</div><div class="v">${s.winRate}%</div></div>
+      <div class="metric"><div class="k">Total P&L</div><div class="v ${s.totalPnl >= 0 ? 'pnl-positive' : 'pnl-negative'}">${formatINR(s.totalPnl)}</div></div>
+      <div class="metric"><div class="k">Profit Factor</div><div class="v">${s.profitFactor ?? '--'}</div></div>
+      <div class="metric"><div class="k">Max Drawdown</div><div class="v">${s.maxDrawdownPercent}%</div></div>
+      <div class="metric"><div class="k">Avg Hold (days)</div><div class="v">${s.avgHoldDays}</div></div>
+    `;
+    const trades = result.trades || [];
+    if (trades.length === 0) {
+      body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No trades generated in this window.</p></div></td></tr>';
+      return;
+    }
+    body.innerHTML = trades.slice().reverse().map(t => {
+      const pnlClass = t.pnl > 0 ? 'pnl-positive' : t.pnl < 0 ? 'pnl-negative' : '';
+      return `<tr>
+        <td style="font-weight:600;color:var(--text)">${t.symbol}</td>
+        <td>${new Date(t.entryDate).toLocaleDateString('en-IN')}</td>
+        <td>${new Date(t.exitDate).toLocaleDateString('en-IN')}</td>
+        <td>${formatINR(t.entryPrice)}</td>
+        <td>${formatINR(t.exitPrice)}</td>
+        <td>${t.qty.toLocaleString('en-IN')}</td>
+        <td class="${pnlClass}">${formatINR(t.pnl)}</td>
+        <td>${t.exitReason.replace('_', ' ')}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    metrics.innerHTML = '<div class="metric"><div class="k">Status</div><div class="v">Failed</div></div>';
+    body.innerHTML = `<tr><td colspan="8"><div class="empty-state"><p style="color:var(--red)">Backtest failed: ${e.message}</p></div></td></tr>`;
+  }
+}
+
+// Load trades
+async function loadTrades() {
+  const body = $('#tradesBody');
+  body.innerHTML = '<tr><td colspan="10"><div class="loading"><div class="spinner"></div>Loading trades...</div></td></tr>';
+  try {
+    const trades = await api('/trades');
+    if (trades.length === 0) {
+      body.innerHTML = '<tr><td colspan="10"><div class="empty-state"><p>No trades yet. Run a scan to get started.</p></div></td></tr>';
+      return;
+    }
+    body.innerHTML = trades.map(t => {
+      const pnlClass = t.pnl > 0 ? 'pnl-positive' : t.pnl < 0 ? 'pnl-negative' : '';
+      return `<tr>
+        <td style="font-weight:600;color:var(--text)">${t.symbol}</td>
+        <td><span class="badge ${t.status}">${t.status}</span></td>
+        <td>${t.qty.toLocaleString('en-IN')}</td>
+        <td>${formatINR(t.entryPrice)}</td>
+        <td>${formatINR(t.stopLoss)}</td>
+        <td>${formatINR(t.target)}</td>
+        <td>${t.exitPrice ? formatINR(t.exitPrice) : '--'}</td>
+        <td class="${pnlClass}">${t.pnl != null ? formatINR(t.pnl) : '--'}</td>
+        <td>${t.exitReason ? `<span class="badge ${t.exitReason}">${t.exitReason.replace('_', ' ')}</span>` : '--'}</td>
+        <td style="color:var(--text-dim)">${new Date(t.entryDate).toLocaleDateString('en-IN')}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="10"><div class="empty-state"><p style="color:var(--red)">Failed to load trades</p></div></td></tr>`;
+  }
+}
+
+// Load logs
+async function loadLogs() {
+  const container = $('#logContainer');
+  try {
+    const logs = await api('/logs');
+    if (logs.length === 0) {
+      container.innerHTML = '<div class="empty-state"><p>No logs yet</p></div>';
+      return;
+    }
+    container.innerHTML = logs.map(line => {
+      let cls = 'log-line';
+      if (line.includes('ERROR')) cls += ' error';
+      else if (line.includes('WARN')) cls += ' warn';
+      else if (line.includes('INFO')) cls += ' info';
+      return `<div class="${cls}">${line}</div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><p style="color:var(--red)">Failed to load logs</p></div>';
+  }
+}
+
+// Button handlers
+$('#btnScan').addEventListener('click', async () => {
+  const btn = $('#btnScan');
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  try {
+    const res = await api('/scan', { method: 'POST' });
+    showToast(res.message || 'Scan complete', 'success');
+    await refreshAll();
+  } catch (e) {
+    showToast('Scan failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Daily Scan';
+  }
+});
+
+$('#btnMonitor').addEventListener('click', async () => {
+  const btn = $('#btnMonitor');
+  btn.disabled = true;
+  btn.textContent = 'Monitoring...';
+  try {
+    const res = await api('/monitor', { method: 'POST' });
+    showToast(res.message || 'Monitor complete', 'success');
+    await refreshAll();
+  } catch (e) {
+    showToast('Monitor failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Monitor Trades';
+  }
+});
+
+$('#btnRefreshSignals').addEventListener('click', () => loadSignals());
+$('#btnRefreshAll').addEventListener('click', () => refreshAll());
+$('#btnLoadChart').addEventListener('click', () => loadChart());
+$('#btnRunBacktest').addEventListener('click', () => runDashboardBacktest());
+$('#chartSymbol').addEventListener('change', () => loadChart());
+
+async function refreshAll() {
+  await Promise.all([loadStatus(), loadTrades(), loadLogs()]);
+}
+
+// Initial load
+(async () => {
+  await loadStatus();
+  await loadWatchlist();
+  loadSignals();
+  loadChart();
+  loadTrades();
+  loadLogs();
+})();
+
+// Auto-refresh status every 30s
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>

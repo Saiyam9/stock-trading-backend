@@ -1,0 +1,28 @@
+{
+  "name": "stock-trading-backend",
+  "version": "1.0.0",
+  "description": "Automated swing trading system for NSE stocks via Zerodha Kite Connect",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "scan": "node src/cli.js scan",
+    "monitor": "node src/cli.js monitor",
+    "backtest": "node src/cli.js backtest",
+    "sensitivity": "node src/cli.js sensitivity",
+    "walk-forward": "node src/cli.js walk-forward",
+    "monte-carlo": "node src/cli.js monte-carlo",
+    "dashboard": "node src/dashboard/server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "kiteconnect": "^5.3.0",
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "winston": "^3.19.0",
+    "yahoo-finance2": "^3.14.0"
+  }
+}
